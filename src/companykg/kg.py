@@ -11,8 +11,12 @@ from typing import Tuple, List
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
+import torch.optim as optim
 from scipy import spatial
 from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.preprocessing import label_binarize
+from torch.utils.data import DataLoader, TensorDataset
 
 from companykg.settings import (
     EDGES_FILENAME,
@@ -30,6 +34,8 @@ class CompanyKG:
     """The CompanyKG class that provides utility functions
     to load data and carry out evaluations.
     """
+
+    eval_task_types = ("sp", "sr", "cr", "ep")
 
     def __init__(
         self,
@@ -100,7 +106,6 @@ class CompanyKG:
         logger.info(f"[DONE] Loaded {self.nodes_feature_file}")
 
         # Load evaluation test data
-        self.eval_task_types = ("sp", "sr", "cr")
         self.eval_tasks = dict()
         for task_type in self.eval_task_types:
             # Check if evaluation test data exists - otherwise download it
@@ -221,6 +226,183 @@ class CompanyKG:
         else:
             g.add_edges((i, j) for (i, j) in self.edges)
         return g
+    
+    def evaluate_ep(self, embed: torch.Tensor, n_trials: int = 3) -> list:
+        """Evaluate the specified node embeddings on EP task.
+
+        Args:
+            embed (torch.Tensor): the node embeddings to be evaluated.
+            n_trials: the number of trials to run the test.
+
+        Returns:
+            list: a list of dict containing overall AUC score on EP task 
+            together with per-category AUC scores.
+        """
+        def prepare_data(ep_df, split, embed, node_id_names, et_col_names):
+            split_df = ep_df[ep_df.split == split]
+            _node_ids_tensor = torch.tensor(
+                split_df[node_id_names].apply(pd.to_numeric, errors='coerce').fillna(0).astype(int).values, 
+                dtype=torch.long)
+            labels = torch.tensor(
+                split_df[et_col_names].apply(pd.to_numeric, errors='coerce').fillna(0).astype(int).values, 
+                dtype=torch.int32)
+            features = torch.cat((
+                embed[_node_ids_tensor[:, 0]], 
+                embed[_node_ids_tensor[:, 1]]), dim=1)
+            return features, labels
+
+        ## Prep validation and test data for EP
+        ep_df = self.eval_tasks["ep"][1]
+        node_id_names = ['node_id0', 'node_id1']
+        et_col_names = ['et2', 'et3', 'et4', 'et5', 'et8', 'et10', 'et14', 'et15']
+        # Prepare validation data and label
+        validation_feature, validation_label = prepare_data(ep_df, "validation", embed, node_id_names, et_col_names)
+        # Prepare test data and label
+        test_feature, test_label = prepare_data(ep_df, "test", embed, node_id_names, et_col_names)
+        
+        ## Run n_trials training using embed
+        test_auc_scores = []
+        for trial in range(n_trials):
+            print(f'Trial {trial + 1}')
+            ## Prep training data and label
+            # filtering and binarizing
+            filtered_edges_weight = (self.edges_weight > 0).int()[:, [1, 2, 3, 4, 7, 9, 13, 14]]
+            rows_with_single_one = filtered_edges_weight.sum(dim=1) == 1
+            filtered_edges_weight = filtered_edges_weight[rows_with_single_one]
+            filtered_edges_weight_np = filtered_edges_weight.numpy()
+            filtered_edges = self.edges[rows_with_single_one]
+            # class balancing
+            counts_of_ones = filtered_edges_weight_np.sum(axis=0)
+            min_count = counts_of_ones.min()
+            mask = np.zeros(filtered_edges_weight_np.shape[0], dtype=bool)
+            for col in range(filtered_edges_weight_np.shape[1]):
+                indices_with_ones = np.where(filtered_edges_weight_np[:, col] == 1)[0]
+                if len(indices_with_ones) > min_count:
+                    sampled_indices = np.random.choice(indices_with_ones, min_count, replace=False)
+                else:
+                    sampled_indices = indices_with_ones
+                mask[sampled_indices] = True
+            training_label = filtered_edges_weight[mask]
+            balanced_filtered_edges = filtered_edges[mask]
+            # feature concatenation
+            training_feature = torch.cat((
+                embed[balanced_filtered_edges[:, 0]], 
+                embed[balanced_filtered_edges[:, 1]]), dim=1)
+            
+            ## Define a simple neural network: feel free to implement your model
+            class MultiClassClassifier(nn.Module):
+                def __init__(self, input_size, num_classes):
+                    super(MultiClassClassifier, self).__init__()
+                    self.fc1 = nn.Linear(input_size, 512)
+                    self.fc2 = nn.Linear(512, 256)
+                    self.fc3 = nn.Linear(256, num_classes)
+                    self.relu = nn.ReLU()
+                    self.dropout = nn.Dropout(0.5)
+
+                def forward(self, x):
+                    x = self.relu(self.fc1(x))
+                    x = self.dropout(x)
+                    x = self.relu(self.fc2(x))
+                    x = self.dropout(x)
+                    x = self.fc3(x)
+                    return x
+                
+            # Model evaluation function: feel free to implement your evaluation metrics
+            def evaluate_model(model, dataloader, device):
+                model.eval()
+                all_labels = []
+                all_outputs = []
+                total_loss = 0.0
+                with torch.no_grad():
+                    for features, labels in dataloader:
+                        features, labels = features.to(device), labels.to(device)
+                        outputs = model(features)
+                        loss = nn.CrossEntropyLoss()(outputs, torch.argmax(labels, dim=1))
+                        total_loss += loss.item() * features.size(0)
+                        all_labels.append(labels.cpu().numpy())
+                        all_outputs.append(outputs.cpu().numpy())
+                all_labels = np.concatenate(all_labels, axis=0)
+                all_outputs = np.concatenate(all_outputs, axis=0)
+                avg_loss = total_loss / len(dataloader.dataset)
+                return all_labels, all_outputs, avg_loss
+
+            ## Train-Eval-Test flow: feel free to implement your training flow
+            # hardware management
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            print(f"Using device: {device}")
+            training_feature = training_feature.to(device)
+            training_label = training_label.to(device)
+            validation_feature = validation_feature.to(device)
+            validation_label = validation_label.to(device)
+            # define the dataset and dataloader
+            batch_size = 64
+            train_dataset = TensorDataset(training_feature, training_label)
+            train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+            validation_dataset = TensorDataset(validation_feature, validation_label)
+            validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
+            # initialize the model and optimizer
+            input_size = training_feature.shape[1]
+            num_classes = training_label.shape[1]
+            model = MultiClassClassifier(input_size, num_classes).to(device)
+            optimizer = optim.Adam(model.parameters(), lr=0.001)
+            # training loop with early stopping
+            num_epochs = 100
+            patience = 5
+            best_val_auc = 0.0
+            epochs_no_improve = 0
+            early_stop = False
+            for epoch in range(num_epochs):
+                model.train()
+                for features, labels in train_loader:
+                    optimizer.zero_grad()
+                    features, labels = features.to(device), labels.to(device)
+                    outputs = model(features)
+                    labels_single = torch.argmax(labels, dim=1)
+                    loss = nn.CrossEntropyLoss()(outputs, labels_single)
+                    loss.backward()
+                    optimizer.step()
+                # evaluate on validation data
+                val_labels, val_outputs, val_loss = evaluate_model(model, validation_loader, device)
+                val_labels_binarized = label_binarize(torch.argmax(torch.tensor(val_labels), dim=1), classes=range(num_classes))
+                overall_val_auc = roc_auc_score(val_labels_binarized, val_outputs, average='macro', multi_class='ovr')
+                per_class_val_auc = roc_auc_score(val_labels_binarized, val_outputs, average=None, multi_class='ovr')
+                print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {val_loss:.4f}, Overall Validation AUC-ROC: {overall_val_auc:.4f}")
+                for i, auc in enumerate(per_class_val_auc):
+                    print(f"Class {i} Validation AUC-ROC: {auc:.4f}")
+                # early stopping check
+                if overall_val_auc > best_val_auc:
+                    best_val_auc = overall_val_auc
+                    best_model_state = model.state_dict()
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+                    if epochs_no_improve >= patience:
+                        print("Early stopping")
+                        early_stop = True
+                        break
+            if not early_stop:
+                best_model_state = model.state_dict()
+            # load the best model
+            model.load_state_dict(best_model_state)
+            # evaluate on test data
+            test_feature = test_feature.to(device)
+            test_label = test_label.to(device)
+            test_dataset = TensorDataset(test_feature, test_label)
+            test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+            test_labels, test_outputs, _ = evaluate_model(model, test_loader, device)
+            test_labels_binarized = label_binarize(torch.argmax(torch.tensor(test_labels), dim=1), classes=range(num_classes))
+            overall_test_auc = roc_auc_score(test_labels_binarized, test_outputs, average='macro', multi_class='ovr')
+            per_class_test_auc = roc_auc_score(test_labels_binarized, test_outputs, average=None, multi_class='ovr')
+            print(f"Overall Test AUC-ROC: {overall_test_auc:.4f}")
+            for i, auc in enumerate(per_class_test_auc):
+                print(f"Class {i} Test AUC-ROC: {auc:.4f}")
+            # append the results to the list
+            test_auc_scores.append({
+                'overall_test_auc': overall_test_auc,
+                'per_class_test_auc': per_class_test_auc
+            })
+
+        return test_auc_scores
 
     def evaluate_sp(self, embed: torch.Tensor) -> float:
         """Evaluate the specified node embeddings on SP task.
@@ -353,6 +535,7 @@ class CompanyKG:
         self,
         embeddings_file: str = None,
         embed: torch.Tensor = None,
+        tasks: tuple = eval_task_types,
         silent: bool = False,
     ) -> dict:
         """Evaluate the specified embedding on all evaluation tasks: SP, SR and CR.
@@ -363,6 +546,7 @@ class CompanyKG:
                 it has highest priority. Defaults to None.
             embed (torch.Tensor, optional): the embedding to be evaluated;
                 it has second highest priority. Defaults to None.
+            tasks: the tasks to run.
             silent (bool): by default, evaluation results are printed to stdout;
                 if True, nothing is output, you just get the results in the
                 returned dict
@@ -388,30 +572,47 @@ class CompanyKG:
             if not silent:
                 print(f"Evaluate Node Features {self.nodes_feature_type}:")
         # SP Task
-        if not silent:
-            print("Evaluate SP ...")
-        result_dict["sp_auc"] = self.evaluate_sp(embed)
-        if not silent:
-            print("SP AUC:", result_dict["sp_auc"])
+        if "sp" in tasks:
+            if not silent:
+                print("Evaluate SP ...")
+            result_dict["sp_auc"] = self.evaluate_sp(embed)
+            if not silent:
+                print("SP AUC:", result_dict["sp_auc"])
+        else:
+            print("SP evaluation skip!")
         # SR Task
-        if not silent:
-            print("Evaluate SR ...")
-        result_dict["sr_validation_acc"] = self.evaluate_sr(embed)
-        result_dict["sr_test_acc"] = self.evaluate_sr(embed, split="test")
-        if not silent:
-            print(
-                "SR Validation ACC:",
-                result_dict["sr_validation_acc"],
-                "SR Test ACC:",
-                result_dict["sr_test_acc"],
-            )
+        if "sr" in tasks:
+            if not silent:
+                print("Evaluate SR ...")
+            result_dict["sr_validation_acc"] = self.evaluate_sr(embed)
+            result_dict["sr_test_acc"] = self.evaluate_sr(embed, split="test")
+            if not silent:
+                print(
+                    "SR Validation ACC:",
+                    result_dict["sr_validation_acc"],
+                    "SR Test ACC:",
+                    result_dict["sr_test_acc"],
+                )
+        else:
+            print("SR evaluation skip!")
 
         # CR Task
-        if not silent:
-            print(f"Evaluate CR with top-K hit rate (K={self.eval_cr_top_ks}) ...")
-        result_dict["cr_topk_hit_rate"] = self.evaluate_cr(embed)
-        if not silent:
-            print("CR Hit Rates:", result_dict["cr_topk_hit_rate"])
+        if "cr" in tasks:
+            if not silent:
+                print(f"Evaluate CR with top-K hit rate (K={self.eval_cr_top_ks}) ...")
+            result_dict["cr_topk_hit_rate"] = self.evaluate_cr(embed)
+            if not silent:
+                print("CR Hit Rates:", result_dict["cr_topk_hit_rate"])
+        else:
+            print("CR evaluation skip!")
+
+        # EP Task
+        if "ep" in tasks:
+            if not silent:
+                print(f"Evaluate EP ...")
+            result_dict["ep_test_auc"] = self.evaluate_ep(embed)
+        else:
+            print("EP evaluation skip!")
 
         return result_dict
 
