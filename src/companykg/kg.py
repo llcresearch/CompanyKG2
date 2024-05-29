@@ -402,7 +402,21 @@ class CompanyKG:
                 'per_class_test_auc': per_class_test_auc
             })
 
-        return test_auc_scores
+        ## Calc mean and std
+        overall_test_auc = [d['overall_test_auc'] for d in test_auc_scores]
+        per_class_test_auc = np.array([d['per_class_test_auc'] for d in test_auc_scores])
+        overall_mean = np.mean(overall_test_auc)
+        overall_std = np.std(overall_test_auc)
+        per_class_mean = np.mean(per_class_test_auc, axis=0)
+        per_class_std = np.std(per_class_test_auc, axis=0)
+
+        return {
+            "overall_mean": overall_mean,
+            "overall_std": overall_std,
+            "per_class_mean": per_class_mean,
+            "per_class_std": per_class_std,
+            "test_auc_scores": test_auc_scores
+        }
 
     def evaluate_sp(self, embed: torch.Tensor) -> float:
         """Evaluate the specified node embeddings on SP task.
