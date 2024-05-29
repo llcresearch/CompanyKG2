@@ -6,7 +6,8 @@
 <p align="left">
   <a href="#setup">Setup</a> •
   <a href="#basic-usage">Usage</a> •
-  <a href="https://zenodo.org/record/8010239">Dataset</a> •
+  <a href="https://zenodo.org/record/11391315">Dataset V2.0</a> •
+  <a href="https://zenodo.org/record/8010239">Dataset V1.1</a> •
   <a href="#training-benchmark-models">Benchmark</a> •
   <a href="https://github.com/EQTPartners/CompanyKG/blob/main/tutorials/tutorial.ipynb">Tutorial</a> •
   <a href="https://arxiv.org/abs/2306.10649">Paper</a> •
@@ -22,7 +23,7 @@
 
 This repository contains all code released to accompany the release of the CompanyKG
 knowledge graph illustrated in Figure 1 below. 
-For details of the dataset and benchmark experiments, see the official release of the [paper](https://arxiv.org/abs/2306.10649) and [dataset](https://zenodo.org/record/8010239).
+For details of the dataset and benchmark experiments, see the official release of the [paper](https://arxiv.org/abs/2306.10649) and [the latest dataset](https://zenodo.org/record/11391315).
 
 ![CompanyKG Illustration](./picture/companykg_illustration.png)
 
@@ -143,9 +144,29 @@ Cite the [official release of the CompanyKG paper on Arxiv](https://arxiv.org/ab
 }
 ```
 
-Cite the [official release of the CompanyKG dataset on Zenodo](https://zenodo.org/record/8010239):
+Cite the [official release of the CompanyKG dataset V1.1 on Zenodo](https://zenodo.org/record/8010239):
 ```bibtex
 @article{companykg_2023_8010239,
+    author = {Lele Cao and
+              Vilhelm von Ehrenheim and
+              Mark Granroth-Wilding and
+              Richard Anselmo Stahl and
+              Drew McCornack and
+              Armin Catovic and
+              Dhiana Deva Cavacanti Rocha},
+    title = {{CompanyKG Dataset: A Large-Scale Heterogeneous Graph for Company Similarity Quantification}},
+    month = June,
+    year = 2023,
+    publisher = {Zenodo},
+    version = {1.1},
+    doi = {10.5281/zenodo.8010239},
+    url = {https://doi.org/10.5281/zenodo.8010239}
+}
+```
+
+Cite the [official release of the CompanyKG dataset V2.0 on Zenodo](https://zenodo.org/record/11391315):
+```bibtex
+@article{companykg_2024_11391315,
     author = {Lele Cao and
               Vilhelm von Ehrenheim and
               Mark Granroth-Wilding and

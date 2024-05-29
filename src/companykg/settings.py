@@ -6,7 +6,7 @@ License: MIT, https://github.com/EQTPartners/CompanyKG/LICENSE.md
 
 CHUNK_SIZE = 1024 * 1024 * 64  # 64 MiB chunk sizes
 # This should point to the record number of the latest version
-ZENODO_RECORD_NUMBER = "8010239"
+ZENODO_RECORD_NUMBER = "11391315"
 ZENODO_DATASET_BASE_URI = f"https://zenodo.org/record/{ZENODO_RECORD_NUMBER}/files/"
 EDGES_FILENAME = "edges.pt"
 EDGES_WEIGHTS_FILENAME = "edges_weight.pt"
