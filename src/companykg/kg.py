@@ -238,6 +238,9 @@ class CompanyKG:
             list: a list of dict containing overall AUC score on EP task 
             together with per-category AUC scores.
         """
+        if type(embed) is not torch.Tensor:
+            embed = torch.tensor(embed)
+            
         def prepare_data(ep_df, split, embed, node_id_names, et_col_names):
             split_df = ep_df[ep_df.split == split]
             _node_ids_tensor = torch.tensor(
