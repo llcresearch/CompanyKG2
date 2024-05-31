@@ -30,11 +30,11 @@ class BaseTrainer(ABC):
         work_folder: str = "./experiments",
         finetune_from: Optional[str] = None,
         allow_retrain: bool = False,
-        load_edges_weights: bool = False,
+        edge_weights: bool = False,
     ):
         self.allow_retrain = allow_retrain
         self.nodes_feature_type = nodes_feature_type
-        self.load_edges_weights = load_edges_weights
+        self.edge_weights = edge_weights
         self.data_root_folder = data_root_folder
         self.seed = seed
         self.work_folder = Path(work_folder) / self.training_method_name
@@ -67,7 +67,7 @@ class BaseTrainer(ABC):
         """
         return CompanyKG(
             nodes_feature_type=self.nodes_feature_type,
-            load_edges_weights=self.load_edges_weights,
+            load_edges_weights=self.edge_weights,
             data_root_folder=self.data_root_folder,
         )
 
@@ -128,12 +128,19 @@ class BaseTrainer(ABC):
         # You can evaluate these using:
         #  results = trainer.comkg.evaluate(embed=trainer.embeddings, silent=True)
 
-    def evaluate(self, silent=False):
+    def evaluate(
+            self, 
+            tasks: tuple = None, 
+            silent: bool = False
+    ) -> dict:
         if self.embeddings is None:
             raise RuntimeError(
                 "projected embeddings are not available for evaluation: training must be run first"
             )
-        results = self.comkg.evaluate(embed=self.embeddings, silent=silent)
+        if tasks is None:
+            results = self.comkg.evaluate(embed=self.embeddings, silent=silent)
+        else:
+            results = self.comkg.evaluate(embed=self.embeddings, tasks=tasks ,silent=silent)
         return results
 
     @classmethod
