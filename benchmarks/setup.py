@@ -8,7 +8,7 @@ from setuptools import setup
 
 setup(
     name="companykg-benchmarks",
-    version="1.0",
+    version="2.0",
     package_dir={"": "src"},
     include_package_data=True,
     description="Company Knowledge Graph benchmarking utilities",
