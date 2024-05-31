@@ -30,11 +30,9 @@ class BaseTrainer(ABC):
         work_folder: str = "./experiments",
         finetune_from: Optional[str] = None,
         allow_retrain: bool = False,
-        edge_weights: bool = False,
     ):
         self.allow_retrain = allow_retrain
         self.nodes_feature_type = nodes_feature_type
-        self.edge_weights = edge_weights
         self.data_root_folder = data_root_folder
         self.seed = seed
         self.work_folder = Path(work_folder) / self.training_method_name
@@ -67,7 +65,7 @@ class BaseTrainer(ABC):
         """
         return CompanyKG(
             nodes_feature_type=self.nodes_feature_type,
-            load_edges_weights=self.edge_weights,
+            load_edges_weights=False,
             data_root_folder=self.data_root_folder,
         )
 
@@ -131,7 +129,7 @@ class BaseTrainer(ABC):
     def evaluate(
             self, 
             tasks: tuple = None, 
-            silent: bool = False
+            silent: bool = False,
     ) -> dict:
         if self.embeddings is None:
             raise RuntimeError(
