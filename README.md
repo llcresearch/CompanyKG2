@@ -7,23 +7,16 @@
   <a href="#setup">Setup</a> •
   <a href="#basic-usage">Usage</a> •
   <a href="https://zenodo.org/record/11391315">Dataset V2.0</a> •
-  <a href="https://zenodo.org/record/8010239">Dataset V1.1</a> •
   <a href="#training-benchmark-models">Benchmark</a> •
-  <a href="https://github.com/EQTPartners/CompanyKG/blob/main/tutorials/tutorial.ipynb">Tutorial</a> •
-  <a href="https://arxiv.org/abs/2306.10649">Paper</a> •
-  <a href="#external-results">External Results</a> •
+  <a href="https://github.com/llcresearch/CompanyKG2/blob/main/tutorials/tutorial.ipynb">Tutorial</a> •
   <a href="#cite-this-work">Citation</a> 
 </p>
 
 </div>
 
-[![version](https://img.shields.io/badge/Version-v1.1-green)](https://github.com/EQTPartners/CompanyKG/releases/tag/1.1)
-[![python](https://img.shields.io/badge/Python-3.8-yellow)](https://www.python.org/doc/versions/)
-[![python](https://img.shields.io/badge/Motherbrain-Research-orange)](https://motherbrain.ai/)
-
 This repository contains all code released to accompany the release of the CompanyKG
-knowledge graph illustrated in Figure 1 below. 
-For details of the dataset and benchmark experiments, see the official release of the [paper](https://arxiv.org/abs/2306.10649) and [the latest dataset](https://zenodo.org/record/11391315).
+knowledge graph (Version 2.0) illustrated in Figure 1 below. 
+For details of the dataset and benchmark experiments, see the official release of the paper (to appear) and [the latest dataset](https://zenodo.org/record/11391315).
 
 ![CompanyKG Illustration](./picture/companykg_illustration.png)
 
@@ -120,16 +113,11 @@ Further instructions for using the benchmarks package for model training and pro
 the [benchmarks README file](./benchmarks/README.md).
 
 
-## External Results
-We collect all benchmarking results on this dataset here. Welcome to reach out to us (via github issue or [email shown in our paper](https://arxiv.org/pdf/2306.10649.pdf)) if you wish to include your experimental results.
-- [Knorreman](https://github.com/Knorreman/fastRP) reported results using [fastRP algorithm](https://arxiv.org/pdf/1908.11512.pdf) achieving [competitive results](https://github.com/EQTPartners/CompanyKG/issues/1#issuecomment-1749707045) (i.e., `sp_auc=85.7%`, `sr_test_acc=69.2%`, `R@50=0.353`, and `R@100=0.430` obtained on different hyper-parameters and initial node embeddings).
-
-
 ## Cite This Work
 
-Cite the [official release of the CompanyKG paper on Arxiv](https://arxiv.org/abs/2306.10649):
+Cite the paper:
 ```bibtex
-@article{cao2023companykg,
+@inproceedings{cao2024companykg2,
     author = {Lele Cao and
               Vilhelm von Ehrenheim and
               Mark Granroth-Wilding and
@@ -137,30 +125,9 @@ Cite the [official release of the CompanyKG paper on Arxiv](https://arxiv.org/ab
               Drew McCornack and
               Armin Catovic and
               Dhiana Deva Cavacanti Rocha},
-    title = {{CompanyKG Dataset: A Large-Scale Heterogeneous Graph for Company Similarity Quantification}},
-    year={2023},
-    journal={arXiv preprint arXiv:2306.10649},
-    primaryClass={cs.AI}
-}
-```
-
-Cite the [official release of the CompanyKG dataset V1.1 on Zenodo](https://zenodo.org/record/8010239):
-```bibtex
-@article{companykg_2023_8010239,
-    author = {Lele Cao and
-              Vilhelm von Ehrenheim and
-              Mark Granroth-Wilding and
-              Richard Anselmo Stahl and
-              Drew McCornack and
-              Armin Catovic and
-              Dhiana Deva Cavacanti Rocha},
-    title = {{CompanyKG Dataset: A Large-Scale Heterogeneous Graph for Company Similarity Quantification}},
-    month = June,
-    year = 2023,
-    publisher = {Zenodo},
-    version = {1.1},
-    doi = {10.5281/zenodo.8010239},
-    url = {https://doi.org/10.5281/zenodo.8010239}
+    title = {{CompanyKG2: A Large-Scale Heterogeneous Graph for Company Similarity Quantification}},
+    booktitle = {Proceedings of the 2024 ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+    year = {2024}
 }
 ```
 
