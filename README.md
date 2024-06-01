@@ -1,6 +1,6 @@
 ![CompanyKG Logo](./picture/logo_400x113.png)
 
-## A Large-Scale Heterogeneous Graph for Company Similarity Quantification
+## A Large-Scale Heterogeneous Graph for Company Similarity Quantification and Relation Prediction
 
 <div>
 <p align="left">
